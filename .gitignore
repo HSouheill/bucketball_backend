@@ -1,0 +1,88 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+*.test
+*.out
+
+# Go workspace file
+go.work
+
+# Environment Variables - NEVER COMMIT THESE!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Dependencies
+vendor/
+
+# Test coverage
+*.out
+coverage.html
+coverage.txt
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# SSL Certificates (if stored locally - better to use vault)
+*.pem
+*.key
+*.crt
+*.csr
+
+# Backup files
+*.bak
+*.backup
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Docker
+.dockerignore
+
+# Secrets and credentials
+secrets/
+credentials/
+*.secret
+*_secret
+*_secrets
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+

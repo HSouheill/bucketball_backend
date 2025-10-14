@@ -9,11 +9,12 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Server   ServerConfig
-	MongoDB  MongoDBConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	App      AppConfig
+	Server  ServerConfig
+	MongoDB MongoDBConfig
+	Redis   RedisConfig
+	JWT     JWTConfig
+	App     AppConfig
+	Email   EmailConfig
 }
 
 // ServerConfig holds server configuration
@@ -45,6 +46,16 @@ type AppConfig struct {
 	Environment string
 	Name        string
 	Version     string
+}
+
+// EmailConfig holds email configuration
+type EmailConfig struct {
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	FromEmail    string
+	FromName     string
 }
 
 var cfg *Config
@@ -82,6 +93,14 @@ func LoadConfig() *Config {
 			Name:        getEnv("APP_NAME", "BucketBall Backend"),
 			Version:     getEnv("APP_VERSION", "1.0.0"),
 		},
+		Email: EmailConfig{
+			SMTPHost:     requiredEnv("SMTP_HOST"),
+			SMTPPort:     getEnv("SMTP_PORT", "587"),
+			SMTPUsername: requiredEnv("SMTP_USERNAME"),
+			SMTPPassword: requiredEnv("SMTP_PASSWORD"),
+			FromEmail:    requiredEnv("FROM_EMAIL"),
+			FromName:     getEnv("FROM_NAME", "BucketBall"),
+		},
 	}
 
 	return cfg
@@ -111,4 +130,3 @@ func requiredEnv(key string) string {
 	}
 	return value
 }
-

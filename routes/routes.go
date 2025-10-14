@@ -3,17 +3,27 @@ package routes
 import (
 	"time"
 
+	"github.com/HSouheil/bucketball_backend/config"
 	"github.com/HSouheil/bucketball_backend/controllers"
 	"github.com/HSouheil/bucketball_backend/middleware"
 	"github.com/HSouheil/bucketball_backend/repositories"
 	"github.com/HSouheil/bucketball_backend/services"
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // SetupRoutes configures all routes
-func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *repositories.AuthRepository) {
+func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *repositories.AuthRepository, db *mongo.Database) {
+	// Get config
+	cfg := config.GetConfig()
+
+	// Initialize repositories
+	otpRepo := repositories.NewOTPRepository(db)
+
 	// Initialize services
-	authService := services.NewAuthService(userRepo, authRepo)
+	emailService := services.NewEmailService(&cfg.Email)
+	otpService := services.NewOTPService(otpRepo, emailService)
+	authService := services.NewAuthService(userRepo, authRepo, otpService)
 	userService := services.NewUserService(userRepo)
 
 	// Initialize controllers
@@ -22,16 +32,21 @@ func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *
 	adminController := controllers.NewAdminController(authService)
 
 	// API v1 group
-	v1 := e.Group("/api/v1")
+	v1 := e.Group("/api")
 
 	// Health check
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{"status": "ok", "message": "BucketBall API is running"})
 	})
 
+	// Static file serving for uploads
+	e.Static("/uploads", "uploads")
+
 	// Auth routes (public)
 	auth := v1.Group("/auth")
 	auth.POST("/register", authController.Register, middleware.RateLimitMiddleware(authRepo, 5, time.Minute))
+	auth.POST("/verify-email", authController.VerifyEmail, middleware.RateLimitMiddleware(authRepo, 10, time.Minute))
+	auth.POST("/resend-otp", authController.ResendOTP, middleware.RateLimitMiddleware(authRepo, 5, time.Minute))
 	auth.POST("/login", authController.Login, middleware.RateLimitMiddleware(authRepo, 10, time.Minute))
 	auth.POST("/logout", authController.Logout, middleware.AuthMiddleware(authRepo))
 

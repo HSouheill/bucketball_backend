@@ -9,6 +9,7 @@ import (
 	"github.com/HSouheil/bucketball_backend/models"
 	"github.com/HSouheil/bucketball_backend/repositories"
 	"github.com/HSouheil/bucketball_backend/security"
+	"github.com/HSouheil/bucketball_backend/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -17,19 +18,28 @@ type AuthService struct {
 	userRepo     *repositories.UserRepository
 	authRepo     *repositories.AuthRepository
 	rateLimitSvc *RateLimitService
+	otpService   *OTPService
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userRepo *repositories.UserRepository, authRepo *repositories.AuthRepository) *AuthService {
+func NewAuthService(userRepo *repositories.UserRepository, authRepo *repositories.AuthRepository, otpService *OTPService) *AuthService {
 	return &AuthService{
 		userRepo:     userRepo,
 		authRepo:     authRepo,
 		rateLimitSvc: NewRateLimitService(authRepo),
+		otpService:   otpService,
 	}
 }
 
-// Register registers a new user
+// Register registers a new user and sends OTP for email verification
 func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest) (*models.User, string, error) {
+	// Sanitize inputs to prevent XSS
+	req.Email = utils.SanitizeEmail(req.Email)
+	req.Username = utils.SanitizeUsername(req.Username)
+	req.FirstName = utils.SanitizeString(req.FirstName)
+	req.LastName = utils.SanitizeString(req.LastName)
+	req.PhoneNumber = utils.SanitizeString(req.PhoneNumber)
+
 	// Check if user already exists
 	existingUser, _ := s.userRepo.GetByEmail(ctx, req.Email)
 	if existingUser != nil {
@@ -61,45 +71,47 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		location = *req.Location
 	}
 
-	// Create user
+	// Create user with email not verified
 	user := &models.User{
-		Email:       req.Email,
-		Username:    req.Username,
-		Password:    hashedPassword,
-		FirstName:   req.FirstName,
-		LastName:    req.LastName,
-		ProfilePic:  req.ProfilePic,
-		DOB:         dob,
-		PhoneNumber: req.PhoneNumber,
-		Location:    location,
-		Balance:     0.0,
-		Withdraw:    0.0,
-		Role:        "user",
-		IsActive:    true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		Email:           req.Email,
+		Username:        req.Username,
+		Password:        hashedPassword,
+		FirstName:       req.FirstName,
+		LastName:        req.LastName,
+		ProfilePic:      req.ProfilePic,
+		DOB:             dob,
+		PhoneNumber:     req.PhoneNumber,
+		Location:        location,
+		Balance:         0.0,
+		Withdraw:        0.0,
+		Role:            "user",
+		IsActive:        true,
+		IsEmailVerified: false,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, "", err
 	}
 
-	// Generate token
-	token, err := security.GenerateToken(user.ID.Hex(), user.Email, user.Username, user.Role)
-	if err != nil {
-		return nil, "", err
+	// Generate and send OTP for email verification
+	if err := s.otpService.GenerateAndSendOTP(ctx, user.Email, user.Username, "registration"); err != nil {
+		// Log the error but don't fail the registration
+		fmt.Printf("Warning: failed to send OTP email: %v\n", err)
+		// Note: In production, you might want to return this error or handle it differently
 	}
 
-	// Store token in Redis
-	if err := s.authRepo.SetToken(ctx, token, user.ID.Hex(), 24*time.Hour); err != nil {
-		return nil, "", err
-	}
-
-	return user, token, nil
+	// Don't generate token yet - user needs to verify email first
+	// Return empty token to indicate verification is pending
+	return user, "", nil
 }
 
 // Login authenticates a user with rate limiting
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest, clientIP string) (*models.User, string, error) {
+	// Sanitize email input
+	req.Email = utils.SanitizeEmail(req.Email)
+
 	// Check rate limit before attempting login
 	allowed, timeLeft, err := s.rateLimitSvc.CheckLoginRateLimit(ctx, req.Email, clientIP)
 	if err != nil {
@@ -126,6 +138,13 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest, clien
 		// Record failed attempt
 		s.rateLimitSvc.RecordLoginAttempt(ctx, req.Email, clientIP, false)
 		return nil, "", errors.New("account is deactivated")
+	}
+
+	// Check if email is verified
+	if !user.IsEmailVerified {
+		// Record failed attempt
+		s.rateLimitSvc.RecordLoginAttempt(ctx, req.Email, clientIP, false)
+		return nil, "", errors.New("email not verified. Please check your email for the OTP code")
 	}
 
 	// Check password
@@ -182,16 +201,19 @@ func (s *AuthService) UpdateUser(ctx context.Context, userID string, req *models
 		}
 	}
 
-	// Prepare update data
+	// Prepare update data with sanitization
 	updateData := make(map[string]interface{})
 	if req.Username != nil {
-		updateData["username"] = *req.Username
+		sanitized := utils.SanitizeUsername(*req.Username)
+		updateData["username"] = sanitized
 	}
 	if req.FirstName != nil {
-		updateData["first_name"] = *req.FirstName
+		sanitized := utils.SanitizeString(*req.FirstName)
+		updateData["first_name"] = sanitized
 	}
 	if req.LastName != nil {
-		updateData["last_name"] = *req.LastName
+		sanitized := utils.SanitizeString(*req.LastName)
+		updateData["last_name"] = sanitized
 	}
 	if req.ProfilePic != nil {
 		updateData["profile_pic"] = *req.ProfilePic
@@ -202,7 +224,8 @@ func (s *AuthService) UpdateUser(ctx context.Context, userID string, req *models
 		}
 	}
 	if req.PhoneNumber != nil {
-		updateData["phone_number"] = *req.PhoneNumber
+		sanitized := utils.SanitizeString(*req.PhoneNumber)
+		updateData["phone_number"] = sanitized
 	}
 	if req.Location != nil {
 		updateData["location"] = *req.Location

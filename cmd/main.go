@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/HSouheil/bucketball_backend/config"
+	customMiddleware "github.com/HSouheil/bucketball_backend/middleware"
 	"github.com/HSouheil/bucketball_backend/repositories"
 	"github.com/HSouheil/bucketball_backend/routes"
 	"github.com/labstack/echo/v4"
@@ -27,16 +28,21 @@ func main() {
 	e.Use(middleware.CORS())
 	e.Use(middleware.RequestID())
 
+	// Security middleware
+	e.Use(customMiddleware.SecurityHeadersMiddleware())
+	e.Use(customMiddleware.HTTPSRedirectMiddleware())
+
 	// Initialize database connections
 	mongoClient := config.InitMongoDB(cfg)
 	redisClient := config.InitRedis(cfg)
+	db := mongoClient.Database(cfg.MongoDB.Database)
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(mongoClient, cfg)
 	authRepo := repositories.NewAuthRepository(redisClient)
 
 	// Initialize routes
-	routes.SetupRoutes(e, userRepo, authRepo)
+	routes.SetupRoutes(e, userRepo, authRepo, db)
 
 	// Graceful shutdown
 	go func() {

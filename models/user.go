@@ -9,22 +9,23 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Email       string             `json:"email" bson:"email" validate:"required,email"`
-	Username    string             `json:"username" bson:"username" validate:"required,min=3,max=20"`
-	Password    string             `json:"-" bson:"password" validate:"required,min=6"`
-	FirstName   string             `json:"first_name" bson:"first_name" validate:"required,min=2,max=50"`
-	LastName    string             `json:"last_name" bson:"last_name" validate:"required,min=2,max=50"`
-	ProfilePic  string             `json:"profile_pic" bson:"profile_pic"`
-	DOB         *time.Time         `json:"dob" bson:"dob" validate:"omitempty"`
-	PhoneNumber string             `json:"phone_number" bson:"phone_number" validate:"omitempty,min=10,max=15"`
-	Location    Location           `json:"location" bson:"location"`
-	Balance     float64            `json:"balance" bson:"balance" validate:"min=0"`
-	Withdraw    float64            `json:"withdraw" bson:"withdraw" validate:"min=0"`
-	Role        string             `json:"role" bson:"role" validate:"required,oneof=user admin"`
-	IsActive    bool               `json:"is_active" bson:"is_active"`
-	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+	ID              primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Email           string             `json:"email" bson:"email" validate:"required,email"`
+	Username        string             `json:"username" bson:"username" validate:"required,min=3,max=20"`
+	Password        string             `json:"-" bson:"password" validate:"required,min=6"`
+	FirstName       string             `json:"first_name" bson:"first_name" validate:"required,min=2,max=50"`
+	LastName        string             `json:"last_name" bson:"last_name" validate:"required,min=2,max=50"`
+	ProfilePic      string             `json:"profile_pic" bson:"profile_pic"`
+	DOB             *time.Time         `json:"dob" bson:"dob" validate:"omitempty"`
+	PhoneNumber     string             `json:"phone_number" bson:"phone_number" validate:"omitempty,min=10,max=15"`
+	Location        Location           `json:"location" bson:"location"`
+	Balance         float64            `json:"balance" bson:"balance" validate:"min=0"`
+	Withdraw        float64            `json:"withdraw" bson:"withdraw" validate:"min=0"`
+	Role            string             `json:"role" bson:"role" validate:"required,oneof=user admin"`
+	IsActive        bool               `json:"is_active" bson:"is_active"`
+	IsEmailVerified bool               `json:"is_email_verified" bson:"is_email_verified"`
+	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
 // AddToBalance adds amount to user's balance
@@ -66,21 +67,22 @@ type Location struct {
 
 // UserResponse represents the user data returned in API responses
 type UserResponse struct {
-	ID          primitive.ObjectID `json:"id"`
-	Email       string             `json:"email"`
-	Username    string             `json:"username"`
-	FirstName   string             `json:"first_name"`
-	LastName    string             `json:"last_name"`
-	ProfilePic  string             `json:"profile_pic"`
-	DOB         *time.Time         `json:"dob"`
-	PhoneNumber string             `json:"phone_number"`
-	Location    Location           `json:"location"`
-	Balance     float64            `json:"balance"`
-	Withdraw    float64            `json:"withdraw"`
-	Role        string             `json:"role"`
-	IsActive    bool               `json:"is_active"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	ID              primitive.ObjectID `json:"id"`
+	Email           string             `json:"email"`
+	Username        string             `json:"username"`
+	FirstName       string             `json:"first_name"`
+	LastName        string             `json:"last_name"`
+	ProfilePic      string             `json:"profile_pic"`
+	DOB             *time.Time         `json:"dob"`
+	PhoneNumber     string             `json:"phone_number"`
+	Location        Location           `json:"location"`
+	Balance         float64            `json:"balance"`
+	Withdraw        float64            `json:"withdraw"`
+	Role            string             `json:"role"`
+	IsActive        bool               `json:"is_active"`
+	IsEmailVerified bool               `json:"is_email_verified"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
 // LoginRequest represents the login request payload
