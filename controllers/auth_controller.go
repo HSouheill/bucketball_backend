@@ -8,16 +8,19 @@ import (
 	"github.com/HSouheil/bucketball_backend/services"
 	"github.com/HSouheil/bucketball_backend/utils"
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type AuthController struct {
-	authService *services.AuthService
+	authService    *services.AuthService
+	paymentService *services.PaymentService
 }
 
 // NewAuthController creates a new auth controller
-func NewAuthController(authService *services.AuthService) *AuthController {
+func NewAuthController(authService *services.AuthService, paymentService *services.PaymentService) *AuthController {
 	return &AuthController{
-		authService: authService,
+		authService:    authService,
+		paymentService: paymentService,
 	}
 }
 
@@ -40,6 +43,7 @@ func (ac *AuthController) Register(c echo.Context) error {
 		req.LastName = c.FormValue("last_name")
 		req.DOB = c.FormValue("dob")
 		req.PhoneNumber = c.FormValue("phone_number")
+		req.ReferralCode = c.FormValue("referral_code")
 
 		// Handle profile picture upload
 		file, err := c.FormFile("profile_pic")
@@ -76,9 +80,10 @@ func (ac *AuthController) Register(c echo.Context) error {
 
 	// Return response without token - user needs to verify email first
 	response := map[string]interface{}{
-		"email":       user.Email,
-		"profile_pic": user.ProfilePic,
-		"message":     "Registration successful. Please check your email for the OTP to verify your account.",
+		"email":         user.Email,
+		"profile_pic":   user.ProfilePic,
+		"referral_code": user.ReferralCode,
+		"message":       "Registration successful. Please check your email for the OTP to verify your account.",
 	}
 
 	return utils.SuccessResponse(c, "Registration successful. OTP sent to your email.", response)
@@ -108,22 +113,25 @@ func (ac *AuthController) Login(c echo.Context) error {
 
 	// Return response
 	userResponse := models.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		Username:        user.Username,
-		FirstName:       user.FirstName,
-		LastName:        user.LastName,
-		ProfilePic:      user.ProfilePic,
-		DOB:             user.DOB,
-		PhoneNumber:     user.PhoneNumber,
-		Location:        user.Location,
-		Balance:         user.Balance,
-		Withdraw:        user.Withdraw,
-		Role:            user.Role,
-		IsActive:        user.IsActive,
-		IsEmailVerified: user.IsEmailVerified,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
+		ID:               user.ID,
+		Email:            user.Email,
+		Username:         user.Username,
+		FirstName:        user.FirstName,
+		LastName:         user.LastName,
+		ProfilePic:       user.ProfilePic,
+		DOB:              user.DOB,
+		PhoneNumber:      user.PhoneNumber,
+		Location:         user.Location,
+		Balance:          user.Balance,
+		Withdraw:         user.Withdraw,
+		Role:             user.Role,
+		IsActive:         user.IsActive,
+		IsEmailVerified:  user.IsEmailVerified,
+		ReferralCode:     user.ReferralCode,
+		ReferredBy:       user.ReferredBy,
+		ReferralEarnings: user.ReferralEarnings,
+		CreatedAt:        user.CreatedAt,
+		UpdatedAt:        user.UpdatedAt,
 	}
 
 	authResponse := models.AuthResponse{
@@ -162,22 +170,25 @@ func (ac *AuthController) GetProfile(c echo.Context) error {
 	}
 
 	userResponse := models.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		Username:        user.Username,
-		FirstName:       user.FirstName,
-		LastName:        user.LastName,
-		ProfilePic:      user.ProfilePic,
-		DOB:             user.DOB,
-		PhoneNumber:     user.PhoneNumber,
-		Location:        user.Location,
-		Balance:         user.Balance,
-		Withdraw:        user.Withdraw,
-		Role:            user.Role,
-		IsActive:        user.IsActive,
-		IsEmailVerified: user.IsEmailVerified,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
+		ID:               user.ID,
+		Email:            user.Email,
+		Username:         user.Username,
+		FirstName:        user.FirstName,
+		LastName:         user.LastName,
+		ProfilePic:       user.ProfilePic,
+		DOB:              user.DOB,
+		PhoneNumber:      user.PhoneNumber,
+		Location:         user.Location,
+		Balance:          user.Balance,
+		Withdraw:         user.Withdraw,
+		Role:             user.Role,
+		IsActive:         user.IsActive,
+		IsEmailVerified:  user.IsEmailVerified,
+		ReferralCode:     user.ReferralCode,
+		ReferredBy:       user.ReferredBy,
+		ReferralEarnings: user.ReferralEarnings,
+		CreatedAt:        user.CreatedAt,
+		UpdatedAt:        user.UpdatedAt,
 	}
 
 	return utils.SuccessResponse(c, "Profile retrieved successfully", userResponse)
@@ -234,22 +245,25 @@ func (ac *AuthController) VerifyEmail(c echo.Context) error {
 	user, err := ac.authService.GetUserByID(ctx, "")
 	if err == nil {
 		userResponse := models.UserResponse{
-			ID:              user.ID,
-			Email:           user.Email,
-			Username:        user.Username,
-			FirstName:       user.FirstName,
-			LastName:        user.LastName,
-			ProfilePic:      user.ProfilePic,
-			DOB:             user.DOB,
-			PhoneNumber:     user.PhoneNumber,
-			Location:        user.Location,
-			Balance:         user.Balance,
-			Withdraw:        user.Withdraw,
-			Role:            user.Role,
-			IsActive:        user.IsActive,
-			IsEmailVerified: user.IsEmailVerified,
-			CreatedAt:       user.CreatedAt,
-			UpdatedAt:       user.UpdatedAt,
+			ID:               user.ID,
+			Email:            user.Email,
+			Username:         user.Username,
+			FirstName:        user.FirstName,
+			LastName:         user.LastName,
+			ProfilePic:       user.ProfilePic,
+			DOB:              user.DOB,
+			PhoneNumber:      user.PhoneNumber,
+			Location:         user.Location,
+			Balance:          user.Balance,
+			Withdraw:         user.Withdraw,
+			Role:             user.Role,
+			IsActive:         user.IsActive,
+			IsEmailVerified:  user.IsEmailVerified,
+			ReferralCode:     user.ReferralCode,
+			ReferredBy:       user.ReferredBy,
+			ReferralEarnings: user.ReferralEarnings,
+			CreatedAt:        user.CreatedAt,
+			UpdatedAt:        user.UpdatedAt,
 		}
 
 		authResponse := models.AuthResponse{
@@ -294,4 +308,59 @@ func (ac *AuthController) ResendOTP(c echo.Context) error {
 	}
 
 	return utils.SuccessResponse(c, "OTP resent successfully", nil)
+}
+
+// GetReferralStats gets referral statistics for the current user
+func (ac *AuthController) GetReferralStats(c echo.Context) error {
+	userID := c.Get("user_id").(string)
+	ctx := c.Request().Context()
+
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return utils.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID", nil)
+	}
+
+	stats, err := ac.authService.GetReferralStats(ctx, objectID)
+	if err != nil {
+		return utils.InternalServerErrorResponse(c, "Failed to get referral stats", err)
+	}
+
+	return utils.SuccessResponse(c, "Referral stats retrieved successfully", stats)
+}
+
+// ProcessPayment processes a payment for the current user
+func (ac *AuthController) ProcessPayment(c echo.Context) error {
+	userID := c.Get("user_id").(string)
+	ctx := c.Request().Context()
+
+	var req models.BalanceUpdateRequest
+	if err := c.Bind(&req); err != nil {
+		return utils.ValidationErrorResponse(c, "Invalid request data", err)
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return utils.ValidationErrorResponse(c, "Validation failed", err)
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return utils.ErrorResponse(c, http.StatusBadRequest, "Invalid user ID", nil)
+	}
+
+	if req.Type == "add" {
+		if err := ac.paymentService.ProcessPayment(ctx, objectID, req.Amount, req.Reason); err != nil {
+			return utils.InternalServerErrorResponse(c, "Failed to process payment", err)
+		}
+		return utils.SuccessResponse(c, "Payment processed successfully", nil)
+	} else if req.Type == "subtract" {
+		if err := ac.paymentService.ProcessWithdrawal(ctx, objectID, req.Amount, req.Reason); err != nil {
+			if strings.Contains(err.Error(), "insufficient balance") {
+				return utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), nil)
+			}
+			return utils.InternalServerErrorResponse(c, "Failed to process withdrawal", err)
+		}
+		return utils.SuccessResponse(c, "Withdrawal processed successfully", nil)
+	}
+
+	return utils.ErrorResponse(c, http.StatusBadRequest, "Invalid payment type", nil)
 }

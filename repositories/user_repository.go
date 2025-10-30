@@ -37,7 +37,13 @@ func NewUserRepository(client *mongo.Client, cfg *config.Config) *UserRepository
 		Options: options.Index().SetUnique(true),
 	}
 
-	collection.Indexes().CreateMany(ctx, []mongo.IndexModel{emailIndex, usernameIndex})
+	// Create unique index on referral_code
+	referralCodeIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "referral_code", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	collection.Indexes().CreateMany(ctx, []mongo.IndexModel{emailIndex, usernameIndex, referralCodeIndex})
 
 	return &UserRepository{collection: collection}
 }
@@ -80,6 +86,16 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByReferralCode gets a user by referral code
+func (r *UserRepository) GetByReferralCode(ctx context.Context, referralCode string) (*models.User, error) {
+	var user models.User
+	err := r.collection.FindOne(ctx, bson.M{"referral_code": referralCode}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}

@@ -20,16 +20,23 @@ func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *
 	// Initialize repositories
 	otpRepo := repositories.NewOTPRepository(db)
 
+	// Initialize repositories
+	gameRepo := repositories.NewGameRepository(db)
+
 	// Initialize services
 	emailService := services.NewEmailService(&cfg.Email)
 	otpService := services.NewOTPService(otpRepo, emailService)
 	authService := services.NewAuthService(userRepo, authRepo, otpService)
 	userService := services.NewUserService(userRepo)
+	referralService := services.NewReferralService(userRepo)
+	paymentService := services.NewPaymentService(userRepo, referralService)
+	gameService := services.NewGameService(gameRepo, userRepo)
 
 	// Initialize controllers
-	authController := controllers.NewAuthController(authService)
+	authController := controllers.NewAuthController(authService, paymentService)
 	userController := controllers.NewUserController(userService)
 	adminController := controllers.NewAdminController(authService)
+	gameController := controllers.NewGameController(gameService)
 
 	// API v1 group
 	v1 := e.Group("/api")
@@ -57,6 +64,21 @@ func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *
 
 	users.GET("/profile", authController.GetProfile)
 	users.PUT("/profile", authController.UpdateProfile)
+	users.GET("/referral-stats", authController.GetReferralStats)
+	users.POST("/payment", authController.ProcessPayment)
+
+	// Game routes (protected)
+	games := v1.Group("/games")
+	games.Use(middleware.AuthMiddleware(authRepo))
+	games.Use(middleware.AuthRateLimitMiddleware(authRepo, 50, time.Hour))
+
+	games.GET("/state", gameController.GetGameState)
+	games.POST("/bet", gameController.PlaceBet)
+	games.POST("/:id/play", gameController.PlayGame)
+	games.GET("/history", gameController.GetGameHistory)
+	games.GET("/stats", gameController.GetUserGameStats)
+	games.GET("/balls", gameController.GetAvailableBalls)
+	games.GET("/baskets", gameController.GetAvailableBaskets)
 
 	// Admin routes
 	admin := v1.Group("/admin")
@@ -73,4 +95,9 @@ func SetupRoutes(e *echo.Echo, userRepo *repositories.UserRepository, authRepo *
 	// Rate limit management endpoints
 	admin.GET("/rate-limit/info", adminController.GetRateLimitInfo)
 	admin.POST("/rate-limit/reset", adminController.ResetRateLimit)
+
+	// Admin game management endpoints
+	admin.GET("/games/stats", gameController.GetGameStats)
+	admin.GET("/games/house-wallet", gameController.GetHouseWallet)
+	admin.POST("/games/:id/simulate", gameController.SimulateOtherPlayers)
 }

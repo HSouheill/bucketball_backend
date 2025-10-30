@@ -24,6 +24,9 @@ type User struct {
 	Role            string             `json:"role" bson:"role" validate:"required,oneof=user admin"`
 	IsActive        bool               `json:"is_active" bson:"is_active"`
 	IsEmailVerified bool               `json:"is_email_verified" bson:"is_email_verified"`
+	ReferralCode    string             `json:"referral_code" bson:"referral_code" validate:"required"`
+	ReferredBy      *primitive.ObjectID `json:"referred_by" bson:"referred_by,omitempty"`
+	ReferralEarnings float64           `json:"referral_earnings" bson:"referral_earnings" validate:"min=0"`
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -81,6 +84,9 @@ type UserResponse struct {
 	Role            string             `json:"role"`
 	IsActive        bool               `json:"is_active"`
 	IsEmailVerified bool               `json:"is_email_verified"`
+	ReferralCode    string             `json:"referral_code"`
+	ReferredBy      *primitive.ObjectID `json:"referred_by"`
+	ReferralEarnings float64           `json:"referral_earnings"`
 	CreatedAt       time.Time          `json:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at"`
 }
@@ -93,15 +99,16 @@ type LoginRequest struct {
 
 // RegisterRequest represents the registration request payload
 type RegisterRequest struct {
-	Email       string    `json:"email" validate:"required,email"`
-	Username    string    `json:"username" validate:"required,min=3,max=20"`
-	Password    string    `json:"password" validate:"required,min=6"`
-	FirstName   string    `json:"first_name" validate:"required,min=2,max=50"`
-	LastName    string    `json:"last_name" validate:"required,min=2,max=50"`
-	ProfilePic  string    `json:"profile_pic,omitempty"`
-	DOB         string    `json:"dob,omitempty" validate:"omitempty"`
-	PhoneNumber string    `json:"phone_number,omitempty" validate:"omitempty,min=10,max=15"`
-	Location    *Location `json:"location,omitempty"`
+	Email        string    `json:"email" validate:"required,email"`
+	Username     string    `json:"username" validate:"required,min=3,max=20"`
+	Password     string    `json:"password" validate:"required,min=6"`
+	FirstName    string    `json:"first_name" validate:"required,min=2,max=50"`
+	LastName     string    `json:"last_name" validate:"required,min=2,max=50"`
+	ProfilePic   string    `json:"profile_pic,omitempty"`
+	DOB          string    `json:"dob,omitempty" validate:"omitempty"`
+	PhoneNumber  string    `json:"phone_number,omitempty" validate:"omitempty,min=10,max=15"`
+	Location     *Location `json:"location,omitempty"`
+	ReferralCode string    `json:"referral_code,omitempty" validate:"omitempty,min=6,max=20"`
 }
 
 // UpdateUserRequest represents the user update request payload
@@ -156,4 +163,18 @@ type Transaction struct {
 	Status      string             `json:"status" bson:"status" validate:"required,oneof=pending completed failed"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+}
+
+// ReferralCommission represents a referral commission transaction
+type ReferralCommission struct {
+	ID              primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	ReferrerID      primitive.ObjectID `json:"referrer_id" bson:"referrer_id"`
+	ReferredUserID  primitive.ObjectID `json:"referred_user_id" bson:"referred_user_id"`
+	OriginalAmount  float64            `json:"original_amount" bson:"original_amount"`
+	CommissionRate  float64            `json:"commission_rate" bson:"commission_rate"`
+	CommissionAmount float64           `json:"commission_amount" bson:"commission_amount"`
+	Description     string             `json:"description" bson:"description"`
+	Status          string             `json:"status" bson:"status" validate:"required,oneof=pending completed failed"`
+	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
 }

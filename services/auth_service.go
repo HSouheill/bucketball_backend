@@ -15,19 +15,21 @@ import (
 )
 
 type AuthService struct {
-	userRepo     *repositories.UserRepository
-	authRepo     *repositories.AuthRepository
-	rateLimitSvc *RateLimitService
-	otpService   *OTPService
+	userRepo       *repositories.UserRepository
+	authRepo       *repositories.AuthRepository
+	rateLimitSvc   *RateLimitService
+	otpService     *OTPService
+	referralService *ReferralService
 }
 
 // NewAuthService creates a new auth service
 func NewAuthService(userRepo *repositories.UserRepository, authRepo *repositories.AuthRepository, otpService *OTPService) *AuthService {
 	return &AuthService{
-		userRepo:     userRepo,
-		authRepo:     authRepo,
-		rateLimitSvc: NewRateLimitService(authRepo),
-		otpService:   otpService,
+		userRepo:        userRepo,
+		authRepo:        authRepo,
+		rateLimitSvc:    NewRateLimitService(authRepo),
+		otpService:      otpService,
+		referralService: NewReferralService(userRepo),
 	}
 }
 
@@ -65,6 +67,24 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		}
 	}
 
+	// Validate referral code if provided
+	var referredBy *primitive.ObjectID
+	if req.ReferralCode != "" {
+		referrer, err := s.referralService.ValidateReferralCode(ctx, req.ReferralCode)
+		if err != nil {
+			return nil, "", fmt.Errorf("invalid referral code: %v", err)
+		}
+		if referrer != nil {
+			referredBy = &referrer.ID
+		}
+	}
+
+	// Generate unique referral code for the new user
+	userReferralCode, err := s.referralService.GenerateReferralCode(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate referral code: %v", err)
+	}
+
 	// Set default location if not provided
 	location := models.Location{}
 	if req.Location != nil {
@@ -73,22 +93,25 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 
 	// Create user with email not verified
 	user := &models.User{
-		Email:           req.Email,
-		Username:        req.Username,
-		Password:        hashedPassword,
-		FirstName:       req.FirstName,
-		LastName:        req.LastName,
-		ProfilePic:      req.ProfilePic,
-		DOB:             dob,
-		PhoneNumber:     req.PhoneNumber,
-		Location:        location,
-		Balance:         0.0,
-		Withdraw:        0.0,
-		Role:            "user",
-		IsActive:        true,
-		IsEmailVerified: false,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		Email:            req.Email,
+		Username:         req.Username,
+		Password:         hashedPassword,
+		FirstName:        req.FirstName,
+		LastName:         req.LastName,
+		ProfilePic:       req.ProfilePic,
+		DOB:              dob,
+		PhoneNumber:      req.PhoneNumber,
+		Location:         location,
+		Balance:          0.0,
+		Withdraw:         0.0,
+		Role:             "user",
+		IsActive:         true,
+		IsEmailVerified:  false,
+		ReferralCode:     userReferralCode,
+		ReferredBy:       referredBy,
+		ReferralEarnings: 0.0,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -254,4 +277,9 @@ func (s *AuthService) GetRateLimitInfo(ctx context.Context, email, ip string) (m
 // ResetRateLimit resets rate limits for an email/IP
 func (s *AuthService) ResetRateLimit(ctx context.Context, email, ip string) error {
 	return s.rateLimitSvc.ResetLoginAttempts(ctx, email, ip)
+}
+
+// GetReferralStats gets referral statistics for a user
+func (s *AuthService) GetReferralStats(ctx context.Context, userID primitive.ObjectID) (map[string]interface{}, error) {
+	return s.referralService.GetReferralStats(ctx, userID)
 }
